@@ -18,6 +18,8 @@
 
 #define BUFFER_SIZE 1024
 #define BACKLOG 10
+#define MAX_USERS 100
+#define MAX_GROUPS 100
 using namespace std;
 namespace fs = std::filesystem;
 
@@ -25,17 +27,19 @@ int INVALID_SOCKET = -1;
 int SOCKET_ERROR = -1;
 
 std::mutex cout_mutex;
-
-// for client sockets
-std::mutex client_mutex;
-// for msg q
-std::mutex message_mutex;
+std::mutex global_mutex;
+std::mutex group_mutex[MAX_GROUPS];
+std::mutex client_mutexes[2 * MAX_USERS];
 
 map<string, string> Passwords;
 map<string, int> client_socket;
 map<string, int> logged_in;
+map<string, set<string>> group;
+map<string, int> group_id;
+
 // sender , receiver, message
 queue<tuple<string, string, string>> msgs;
+int group_count = 0;
 
 void server_logs(std::string log)
 {
@@ -48,9 +52,11 @@ void handle_messages(string username, char *buffer)
 {
     std::string message = buffer;
     string word = "";
+    int id = client_socket[username];
     // read first word
     std::stringstream ss(message);
     ss >> word;
+
     if (word == "/msg")
     {
         // receiver , msg
@@ -59,8 +65,119 @@ void handle_messages(string username, char *buffer)
         getline(ss, msg);
         msg = msg.substr(1);
         server_logs("Message from " + username + " to " + receiver + ": " + msg);
-        std::lock_guard<std::mutex> lock(message_mutex);
+        std::lock_guard<std::mutex> lock(global_mutex);
+        // server_logs("We reach here!!");
         msgs.push({username, receiver, msg});
+    }
+    else if (word == "/create_group")
+    {
+        string group_name;
+        ss >> group_name;
+        if (1)
+        {
+            std::lock_guard<std::mutex> lock(global_mutex);
+            group[group_name].insert(username);
+            group_id[group_name] = group_count++;
+        }
+        server_logs("Group " + group_name + " created by " + username);
+        if (1)
+        {
+            std::lock_guard<std::mutex> lock(client_mutexes[id]);
+
+            std::string response = "Group " + group_name + " created";
+            send(client_socket[username], response.c_str(), response.size(), 0);
+        }
+    }
+    else if (word == "/join_group")
+    {
+        string group_name;
+        ss >> group_name;
+        int id = group_id[group_name];
+        if (1)
+        {
+
+            std::lock_guard<std::mutex> lock(group_mutex[id]);
+            group[group_name].insert(username);
+        }
+
+        server_logs(username + " joined group " + group_name);
+        if (1)
+        {
+
+            std::lock_guard<std::mutex> lock(client_mutexes[id]);
+            std::string response = "Joined group " + group_name;
+            send(client_socket[username], response.c_str(), response.size(), 0);
+        }
+    }
+    else if (word == "/group_msg")
+    {
+        string group_name, msg;
+        ss >> group_name;
+        int id = group_id[group_name];
+        getline(ss, msg);
+        msg = msg.substr(1);
+        server_logs("Message from " + username + " to group " + group_name + ": " + msg);
+        set<string> members;
+        if (1)
+        {
+            std::lock_guard<std::mutex> lock(group_mutex[id]);
+            for (auto member : group[group_name])
+            {
+                members.insert(member);
+            }
+        }
+        std::lock_guard<std::mutex> lock(global_mutex);
+        for (auto member : members)
+        {
+            if (member == username)
+                continue;
+            msgs.push({"GROUP " + group_name, member, msg});
+        }
+    }
+
+    else if (word == "/leave_group")
+    {
+        string group_name;
+        ss >> group_name;
+        int id = group_id[group_name];
+        if (1)
+        {
+            std::lock_guard<std::mutex> lock(group_mutex[id]);
+            group[group_name].erase(username);
+        }
+
+        server_logs(username + " left group " + group_name);
+        if (1)
+        {
+            std::lock_guard<std::mutex> lock(client_mutexes[id]);
+            std::string response = "Left group " + group_name;
+            send(client_socket[username], response.c_str(), response.size(), 0);
+        }
+    }
+
+    else if (word == "/broadcast")
+    {
+        string msg;
+        getline(ss, msg);
+        msg = msg.substr(1);
+        server_logs("Broadcast message from " + username + ": " + msg);
+        std::lock_guard<std::mutex> lock(global_mutex);
+        for (auto [client, logged_in] : logged_in)
+        {
+            if (client == username)
+                continue;
+            if (logged_in == 1)
+            {
+                msgs.push({"BROADCAST " + username, client, msg});
+            }
+        }
+    }
+
+    else
+    {
+        std::lock_guard<std::mutex> lock(client_mutexes[id]);
+        std::string response = "Invalid command";
+        send(client_socket[username], response.c_str(), response.size(), 0);
     }
 }
 
@@ -71,20 +188,23 @@ void handle_client_messages(string username)
     while (true)
     {
         memset(buffer, 0, BUFFER_SIZE);
-        int bytes_received = recv(acceptSocket, buffer, BUFFER_SIZE, 0);
-        if (bytes_received <= 0)
+        if (1)
         {
-            std::lock_guard<std::mutex> lock(cout_mutex);
-            std::cout << "Disconnected from client." << std::endl;
-            close(acceptSocket);
-            logged_in[username] = 0;
-            client_socket.erase(username);
-            return;
-        }
-        else
-        {
-            // std::lock_guard<std::mutex> lock(cout_mutex);
-            // std::cout << buffer << std::endl;
+            std::lock_guard<std::mutex> lock(client_mutexes[MAX_USERS + acceptSocket]);
+            int bytes_received = recv(acceptSocket, buffer, BUFFER_SIZE, 0);
+            if (bytes_received <= 0)
+            {
+                server_logs("Disconnected from client " + username);
+                close(acceptSocket);
+                if (1)
+                {
+                    std::lock_guard<std::mutex> lock(global_mutex);
+                    logged_in[username] = 0;
+                }
+                std::lock_guard<std::mutex> lock(global_mutex);
+                client_socket.erase(username);
+                return;
+            }
         }
         handle_messages(username, buffer);
     }
@@ -92,33 +212,30 @@ void handle_client_messages(string username)
 
 void handle_client(string username)
 {
+
     int acceptSocket = client_socket[username];
+
     char buffer[BUFFER_SIZE];
     // send messages about other participants
-    for (auto [client, logged_in] : logged_in)
+    if (1)
     {
-        if (logged_in == 1 and client != username)
+        std::lock_guard<std::mutex> lock(global_mutex);
+        for (auto [client, logged_in] : logged_in)
         {
-            // take the lock
-            std::string message = client + " has joined the chat";
-            server_logs("Sending message to " + username + ": " + message);
-            std::lock_guard<std::mutex> lock(client_mutex);
-            send(acceptSocket, message.c_str(), message.size(), 0);
+            if (logged_in == 1 and client != username)
+            {
+                // take the lock
+                std::string message = client + " has joined the chat\n";
+                int id = client_socket[username];
+                server_logs("Sending message to " + username + ": " + message);
+                std::lock_guard<std::mutex> lock(client_mutexes[id]);
+                send(acceptSocket, message.c_str(), message.size(), 0);
+            }
         }
     }
-
     // create a thread to handle messages from this client
     std::thread handle_client_messages_thread(handle_client_messages, username);
     handle_client_messages_thread.detach();
-}
-
-void broadcast_message(const std::string &message)
-{
-    for (auto &client : client_socket)
-    {
-        std::lock_guard<std::mutex> lock(client_mutex);
-        send(client.second, message.c_str(), message.size(), 0);
-    }
 }
 
 void authenticate_client(int acceptSocket)
@@ -127,40 +244,43 @@ void authenticate_client(int acceptSocket)
     char password_prompt[BUFFER_SIZE];
     char username[BUFFER_SIZE];
     char password[BUFFER_SIZE];
+    int id = acceptSocket;
     memset(username, 0, BUFFER_SIZE);
     memset(password, 0, BUFFER_SIZE);
     strcpy(user_prompt, "Enter username: ");
     strcpy(password_prompt, "Enter password: ");
     if (1)
     {
-        std::lock_guard<std::mutex> lock(client_mutex);
+        std::lock_guard<std::mutex> lock(client_mutexes[id]);
         send(acceptSocket, user_prompt, strlen(user_prompt), 0);
     }
     if (1)
     {
 
-        std::lock_guard<std::mutex> lock(client_mutex);
+        std::lock_guard<std::mutex> lock(client_mutexes[MAX_USERS + id]);
         memset(username, 0, BUFFER_SIZE);
         recv(acceptSocket, username, BUFFER_SIZE, 0);
     }
     if (1)
     {
-        std::lock_guard<std::mutex> lock(client_mutex);
+        std::lock_guard<std::mutex> lock(client_mutexes[id]);
 
         send(acceptSocket, password_prompt, strlen(password_prompt), 0);
     }
     if (1)
     {
-        std::lock_guard<std::mutex> lock(client_mutex);
+        std::lock_guard<std::mutex> lock(client_mutexes[MAX_USERS + id]);
         memset(password, 0, BUFFER_SIZE);
         recv(acceptSocket, password, BUFFER_SIZE, 0);
     }
+
     server_logs("Username: " + std::string(username) + " Password: " + std::string(password));
     if (Passwords.find(username) == Passwords.end() || Passwords[username] != password || logged_in[username] == 1)
     {
         server_logs("Authentication failed for " + std::string(username));
         string response = "Authentication failed";
-        std::lock_guard<std::mutex> lock(client_mutex);
+        id = acceptSocket;
+        std::lock_guard<std::mutex> lock(client_mutexes[id]);
         send(acceptSocket, response.c_str(), response.size(), 0);
         close(acceptSocket);
         return;
@@ -171,39 +291,41 @@ void authenticate_client(int acceptSocket)
         server_logs("Authentication successful for " + std::string(username));
         if (1)
         {
-            std::lock_guard<std::mutex> lock(client_mutex);
-            std::string response = "Welcome to the server " + std::string(username);
+            std::lock_guard<std::mutex> lock(client_mutexes[id]);
+            std::string response = "Welcome to the server " + std::string(username) + "!\n";
             send(acceptSocket, response.c_str(), response.size(), 0);
         }
         server_logs("Welcome " + std::string(username) + "!");
-        logged_in[username] = 1;
+        if (1)
+        {
+            std::lock_guard<std::mutex> lock(global_mutex);
+            logged_in[username] = 1;
+        }
+
         // if authentication is successful, start the client thread
         client_socket[username] = acceptSocket;
         handle_client(username);
     }
 }
 
-void push_dms()
+void push_messages()
 {
     while (true)
     {
-        std::lock_guard<std::mutex> lock(message_mutex);
+        std::lock_guard<std::mutex> lock(global_mutex);
         while (!msgs.empty())
         {
             auto [sender, receiver, message] = msgs.front();
             msgs.pop();
-            std::string msg = sender + ": " + message + "\n";
-            if (receiver == "all")
-            {
-                broadcast_message(msg);
-            }
-            else
+            std::string msg = sender + ": " + message;
+
             {
                 if (logged_in[receiver] == 1)
                 {
+                    int id = client_socket[receiver];
                     // take the lock
                     server_logs("Sending message from " + sender + " to " + receiver + ": " + message);
-                    std::lock_guard<std::mutex> lock(client_mutex);
+                    std::lock_guard<std::mutex> lock(client_mutexes[id]);
                     send(client_socket[receiver], msg.c_str(), msg.size(), 0);
                 }
                 else
@@ -286,7 +408,7 @@ int main(int argc, char *argv[])
         std::cout << "Server started on port " << port << "\n";
     }
 
-    std::thread push_dms_thread(push_dms);
+    std::thread push_dms_thread(push_messages);
     push_dms_thread.detach();
 
     while (1)
@@ -312,8 +434,8 @@ int main(int argc, char *argv[])
     return 0;
 }
 
-// disconnecting client sometimes causes the server to crash
-// sometimes authentication fails for no reason, some thread problem
+// disconnecting client sometimes causes the server to crash.
+// sometimes authentication fails for no reason, some thread problem ig.
 // while displaying all users logged in, the client clubs multiple packets together and displays them together as one message ? If we can implement a blocking send.....
-// implement broadcast and group chat
-// another issue... make separate client_mutex locks for different client sockets.
+
+// We assume that clients remain connected.
