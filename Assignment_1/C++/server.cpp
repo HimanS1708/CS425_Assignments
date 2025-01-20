@@ -313,6 +313,7 @@ void push_messages()
     while (true)
     {
         std::lock_guard<std::mutex> lock(global_mutex);
+        queue<tuple<string, string, string>> afk_queue;
         while (!msgs.empty())
         {
             auto [sender, receiver, message] = msgs.front();
@@ -331,9 +332,14 @@ void push_messages()
                 else
                 {
                     // push to the back of the queue
-                    msgs.push({sender, receiver, message});
+                    afk_queue.push({sender, receiver, message});
                 }
             }
+        }
+        while (!afk_queue.empty())
+        {
+            msgs.push(afk_queue.front());
+            afk_queue.pop();
         }
     }
 }
