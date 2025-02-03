@@ -122,7 +122,6 @@ void handle_messages(std::string username, char *buffer)
         msg = msg.substr(1);
         server_logs("Message from " + username + " to group " + group_name + ": " + msg);
         std::set<std::string> members;
-        if (1)
         {
             std::lock_guard<std::mutex> lock(group_mutex[id]);
             for (auto member : group[group_name])
@@ -130,6 +129,7 @@ void handle_messages(std::string username, char *buffer)
                 members.insert(member);
             }
         }
+
         std::lock_guard<std::mutex> lock(global_mutex);
         for (auto member : members)
         {
@@ -143,15 +143,25 @@ void handle_messages(std::string username, char *buffer)
     {
         std::string group_name;
         ss >> group_name;
+
+        // Check if user is a member of the group or not
+        if(!group.count(group_name) || !group[group_name].count(username)){
+            std::lock_guard<std::mutex> lock(client_mutexes[id]);
+
+            std::string response = "User " + username + " not a member of group " + group_name;
+            send(client_socket[username], response.c_str(), response.size(), 0);
+
+            return;
+        }
+
+        // Handle group leaving logic
         int id = group_id[group_name];
-        if (1)
         {
             std::lock_guard<std::mutex> lock(group_mutex[id]);
             group[group_name].erase(username);
         }
-
         server_logs(username + " left group " + group_name);
-        if (1)
+
         {
             std::lock_guard<std::mutex> lock(client_mutexes[id]);
             std::string response = "Left group " + group_name;
