@@ -135,7 +135,7 @@ void handle_messages(std::string username, char *buffer)
         {
             if (member == username)
                 continue;
-            msgs.push({"GROUP " + group_name, member, msg});
+            msgs.push({"Group " + group_name, member, msg});
         }
     }
 
@@ -357,7 +357,7 @@ void push_messages()
         {
             auto [sender, receiver, message] = msgs.front();
             msgs.pop();
-            std::string msg = sender + ": " + message;
+            std::string msg = "[" + sender + "]: " + message;
 
             {
                 if (logged_in[receiver] == 1)
