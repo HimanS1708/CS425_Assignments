@@ -228,7 +228,6 @@ void handle_client(std::string username)
 
     int acceptSocket = client_socket[username];
 
-    char buffer[BUFFER_SIZE];
     // send messages about other participants
     {
         std::lock_guard<std::mutex> lock(global_mutex);
@@ -265,25 +264,44 @@ void authenticate_client(int acceptSocket)
 
     {
         std::lock_guard<std::mutex> lock(client_mutexes[id]);
-        send(acceptSocket, user_prompt, strlen(user_prompt), 0);
+        int bytes_sent = send(acceptSocket, user_prompt, strlen(user_prompt), 0);
+        if(bytes_sent<0){
+            perror("send() failed (username prompt)");
+            close(acceptSocket);
+            return;
+        }
     }
 
     {
-
         std::lock_guard<std::mutex> lock(client_mutexes[MAX_USERS + id]);
         memset(username, 0, BUFFER_SIZE);
-        recv(acceptSocket, username, BUFFER_SIZE, 0);
+        int bytes_received = recv(acceptSocket, username, BUFFER_SIZE, 0);
+        if(bytes_received<=0){
+            server_logs("Disconnected from client at socket " + std::to_string(acceptSocket) + " (username)");
+            close(acceptSocket);
+            return;
+        }
     }
 
     {
         std::lock_guard<std::mutex> lock(client_mutexes[id]);
-        send(acceptSocket, password_prompt, strlen(password_prompt), 0);
+        int bytes_sent = send(acceptSocket, password_prompt, strlen(password_prompt), 0);
+        if(bytes_sent<0){
+            perror("send() failed (password prompt)");
+            close(acceptSocket);
+            return;
+        }
     }
 
     {
         std::lock_guard<std::mutex> lock(client_mutexes[MAX_USERS + id]);
         memset(password, 0, BUFFER_SIZE);
-        recv(acceptSocket, password, BUFFER_SIZE, 0);
+        int bytes_received = recv(acceptSocket, password, BUFFER_SIZE, 0);
+        if(bytes_received<=0){
+            server_logs("Disconnected from client at socket " + std::to_string(acceptSocket) + " (password)");
+            close(acceptSocket);
+            return;
+        }
     }
 
     server_logs("Username: " + std::string(username) + " Password: " + std::string(password));
@@ -436,8 +454,6 @@ int main()
     return 0;
 }
 
-// disconnecting client sometimes causes the server to crash.
-// sometimes authentication fails for no reason, some thread problem ig.
 // while displaying all users logged in, the client clubs multiple packets together and displays them together as one message ? If we can implement a blocking send.....
 
 // We assume that clients remain connected.
