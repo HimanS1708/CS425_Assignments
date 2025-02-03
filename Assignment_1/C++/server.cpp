@@ -67,14 +67,13 @@ void handle_messages(std::string username, char *buffer)
     {
         std::string group_name;
         ss >> group_name;
-        if (1)
         {
             std::lock_guard<std::mutex> lock(global_mutex);
             group[group_name].insert(username);
             group_id[group_name] = group_count++;
         }
         server_logs("Group " + group_name + " created by " + username);
-        if (1)
+
         {
             std::lock_guard<std::mutex> lock(client_mutexes[id]);
 
@@ -86,8 +85,19 @@ void handle_messages(std::string username, char *buffer)
     {
         std::string group_name;
         ss >> group_name;
+
+        // Check if the group exists
+        if(!group_id.count(group_name)){
+            std::lock_guard<std::mutex> lock(client_mutexes[id]);
+
+            std::string response = "Group " + group_name + " does not exist";
+            send(client_socket[username], response.c_str(), response.size(), 0);
+
+            return;
+        }
+
+        // Handle group logic
         int id = group_id[group_name];
-        if (1)
         {
 
             std::lock_guard<std::mutex> lock(group_mutex[id]);
@@ -95,7 +105,7 @@ void handle_messages(std::string username, char *buffer)
         }
 
         server_logs(username + " joined group " + group_name);
-        if (1)
+
         {
 
             std::lock_guard<std::mutex> lock(client_mutexes[id]);
