@@ -69,6 +69,12 @@ void handle_messages(std::string username, char *buffer)
         ss >> group_name;
         {
             std::lock_guard<std::mutex> lock(global_mutex);
+            if(group.count(group_name)){
+                std::lock_guard<std::mutex> lock(client_mutexes[id]);
+                std::string response = "Group " + group_name + " already exists";
+                send(client_socket[username], response.c_str(), response.size(), 0);
+                return;
+            }
             group[group_name].insert(username);
             group_id[group_name] = group_count++;
         }
@@ -138,7 +144,6 @@ void handle_messages(std::string username, char *buffer)
             msgs.push({"Group " + group_name, member, msg});
         }
     }
-
     else if (word == "/leave_group")
     {
         std::string group_name;
@@ -179,7 +184,6 @@ void handle_messages(std::string username, char *buffer)
             send(client_socket[username], response.c_str(), response.size(), 0);
         }
     }
-
     else if (word == "/broadcast")
     {
         std::string msg;
@@ -197,7 +201,6 @@ void handle_messages(std::string username, char *buffer)
             }
         }
     }
-
     else
     {
         std::lock_guard<std::mutex> lock(client_mutexes[id]);
@@ -247,11 +250,12 @@ void handle_client(std::string username)
             if (logged_in == 1 && client != username)
             {
                 // take the lock
-                std::string message = client + " has joined the chat\n";
+                std::string message = client + " has joined the chat";
+                std::string message_to_send = "\n" + message;
                 int id = client_socket[username];
                 server_logs("Sending message to " + username + ": " + message);
                 std::lock_guard<std::mutex> lock(client_mutexes[id]);
-                send(acceptSocket, message.c_str(), message.size(), 0);
+                send(acceptSocket, message_to_send.c_str(), message_to_send.size(), 0);
             }
         }
     }
@@ -332,7 +336,7 @@ void authenticate_client(int acceptSocket)
         server_logs("Authentication successful for " + std::string(username));
         {
             std::lock_guard<std::mutex> lock(client_mutexes[id]);
-            std::string response = "Welcome to the server " + std::string(username) + "!\n";
+            std::string response = "Welcome to the server " + std::string(username) + "!";
             send(acceptSocket, response.c_str(), response.size(), 0);
         }
         server_logs("Welcome " + std::string(username) + "!");
