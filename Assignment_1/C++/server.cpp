@@ -1,26 +1,20 @@
-#include <bits/stdc++.h>
 #include <mutex>
 #include <thread>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <sys/socketvar.h>
-#include <netinet/in.h>
 #include <arpa/inet.h>
-#include <sys/un.h>
 #include <unistd.h>
-#include <sys/sysmacros.h>
-#include <sstream>
-#include <resolv.h>
 #include <fstream>
-#include <string>
-#include <sys/stat.h>
-#include <filesystem>
+#include <sstream>
+#include <string.h>
+#include <map>
+#include <set>
+#include <queue>
+#include <iostream>
 
 #define BUFFER_SIZE 1024
 #define BACKLOG 10
 #define MAX_USERS 100
 #define MAX_GROUPS 100
-using namespace std;
+
 namespace fs = std::filesystem;
 
 int INVALID_SOCKET = -1;
@@ -31,14 +25,14 @@ std::mutex global_mutex;
 std::mutex group_mutex[MAX_GROUPS];
 std::mutex client_mutexes[2 * MAX_USERS];
 
-map<string, string> Passwords;
-map<string, int> client_socket;
-map<string, int> logged_in;
-map<string, set<string>> group;
-map<string, int> group_id;
+std::map<std::string, std::string> Passwords;
+std::map<std::string, int> client_socket;
+std::map<std::string, int> logged_in;
+std::map<std::string, std::set<std::string>> group;
+std::map<std::string, int> group_id;
 
-// sender , receiver, message
-queue<tuple<string, string, string>> msgs;
+// sender, receiver, message
+std::queue<std::tuple<std::string, std::string, std::string>> msgs;
 int group_count = 0;
 
 void server_logs(std::string log)
@@ -48,10 +42,10 @@ void server_logs(std::string log)
     std::cout << "Server Logs: " << log << "\n";
 }
 
-void handle_messages(string username, char *buffer)
+void handle_messages(std::string username, char *buffer)
 {
     std::string message = buffer;
-    string word = "";
+    std::string word = "";
     int id = client_socket[username];
     // read first word
     std::stringstream ss(message);
@@ -60,7 +54,7 @@ void handle_messages(string username, char *buffer)
     if (word == "/msg")
     {
         // receiver , msg
-        string receiver, msg;
+        std::string receiver, msg;
         ss >> receiver;
         getline(ss, msg);
         msg = msg.substr(1);
@@ -71,7 +65,7 @@ void handle_messages(string username, char *buffer)
     }
     else if (word == "/create_group")
     {
-        string group_name;
+        std::string group_name;
         ss >> group_name;
         if (1)
         {
@@ -90,7 +84,7 @@ void handle_messages(string username, char *buffer)
     }
     else if (word == "/join_group")
     {
-        string group_name;
+        std::string group_name;
         ss >> group_name;
         int id = group_id[group_name];
         if (1)
@@ -111,13 +105,13 @@ void handle_messages(string username, char *buffer)
     }
     else if (word == "/group_msg")
     {
-        string group_name, msg;
+        std::string group_name, msg;
         ss >> group_name;
         int id = group_id[group_name];
         getline(ss, msg);
         msg = msg.substr(1);
         server_logs("Message from " + username + " to group " + group_name + ": " + msg);
-        set<string> members;
+        std::set<std::string> members;
         if (1)
         {
             std::lock_guard<std::mutex> lock(group_mutex[id]);
@@ -137,7 +131,7 @@ void handle_messages(string username, char *buffer)
 
     else if (word == "/leave_group")
     {
-        string group_name;
+        std::string group_name;
         ss >> group_name;
         int id = group_id[group_name];
         if (1)
@@ -157,7 +151,7 @@ void handle_messages(string username, char *buffer)
 
     else if (word == "/broadcast")
     {
-        string msg;
+        std::string msg;
         getline(ss, msg);
         msg = msg.substr(1);
         server_logs("Broadcast message from " + username + ": " + msg);
@@ -181,7 +175,7 @@ void handle_messages(string username, char *buffer)
     }
 }
 
-void handle_client_messages(string username)
+void handle_client_messages(std::string username)
 {
     int acceptSocket = client_socket[username];
     char buffer[BUFFER_SIZE];
@@ -209,7 +203,7 @@ void handle_client_messages(string username)
     }
 }
 
-void handle_client(string username)
+void handle_client(std::string username)
 {
 
     int acceptSocket = client_socket[username];
@@ -276,7 +270,7 @@ void authenticate_client(int acceptSocket)
     if (Passwords.find(username) == Passwords.end() || Passwords[username] != password || logged_in[username] == 1)
     {
         server_logs("Authentication failed for " + std::string(username));
-        string response = "Authentication failed";
+        std::string response = "Authentication failed";
         id = acceptSocket;
         std::lock_guard<std::mutex> lock(client_mutexes[id]);
         send(acceptSocket, response.c_str(), response.size(), 0);
@@ -309,7 +303,7 @@ void push_messages()
     while (true)
     {
         std::lock_guard<std::mutex> lock(global_mutex);
-        queue<tuple<string, string, string>> afk_queue;
+        std::queue<std::tuple<std::string, std::string, std::string>> afk_queue;
         while (!msgs.empty())
         {
             auto [sender, receiver, message] = msgs.front();
@@ -363,17 +357,18 @@ int main()
             std::cerr << "Invalid line in users.txt: " << str << std::endl;
             return 0;
         }
-        string username = str.substr(0, pos);
-        string password = str.substr(pos + 1);
+        std::string username = str.substr(0, pos);
+        std::string password = str.substr(pos + 1);
         Passwords[username] = password;
     }
 
     // Create the server socket
     int serverSocket = socket(AF_INET, SOCK_STREAM, 0);
-    setsockopt(serverSocket, SOL_SOCKET, SO_REUSEADDR, NULL, 1);
+    int opt = 1;
+    setsockopt(serverSocket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
     if (serverSocket == INVALID_SOCKET)
     {
-        cout << "Error at socket(): Creation Failed " << "\n";
+        std::cout << "Error at socket(): Creation Failed " << "\n";
         return 0;
     }
     std::cout << "socket() is OK!\n";
@@ -384,7 +379,7 @@ int main()
     server_address.sin_addr.s_addr = INADDR_ANY;
     if (bind(serverSocket, (sockaddr *)&server_address, sizeof(server_address)) == SOCKET_ERROR)
     {
-        std::cout << "bind() failed: " << "\n";
+        std::cout << "bind() failed" << "\n";
         close(serverSocket);
         return 0;
     }
