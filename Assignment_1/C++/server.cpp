@@ -188,7 +188,6 @@ void handle_client_messages(string username)
     while (true)
     {
         memset(buffer, 0, BUFFER_SIZE);
-        if (1)
         {
             std::lock_guard<std::mutex> lock(client_mutexes[MAX_USERS + acceptSocket]);
             int bytes_received = recv(acceptSocket, buffer, BUFFER_SIZE, 0);
@@ -196,11 +195,11 @@ void handle_client_messages(string username)
             {
                 server_logs("Disconnected from client " + username);
                 close(acceptSocket);
-                if (1)
                 {
                     std::lock_guard<std::mutex> lock(global_mutex);
                     logged_in[username] = 0;
                 }
+                
                 std::lock_guard<std::mutex> lock(global_mutex);
                 client_socket.erase(username);
                 return;
@@ -217,12 +216,11 @@ void handle_client(string username)
 
     char buffer[BUFFER_SIZE];
     // send messages about other participants
-    if (1)
     {
         std::lock_guard<std::mutex> lock(global_mutex);
         for (auto [client, logged_in] : logged_in)
         {
-            if (logged_in == 1 and client != username)
+            if (logged_in == 1 && client != username)
             {
                 // take the lock
                 std::string message = client + " has joined the chat\n";
@@ -233,6 +231,7 @@ void handle_client(string username)
             }
         }
     }
+
     // create a thread to handle messages from this client
     std::thread handle_client_messages_thread(handle_client_messages, username);
     handle_client_messages_thread.detach();
@@ -249,25 +248,24 @@ void authenticate_client(int acceptSocket)
     memset(password, 0, BUFFER_SIZE);
     strcpy(user_prompt, "Enter username: ");
     strcpy(password_prompt, "Enter password: ");
-    if (1)
+
     {
         std::lock_guard<std::mutex> lock(client_mutexes[id]);
         send(acceptSocket, user_prompt, strlen(user_prompt), 0);
     }
-    if (1)
+
     {
 
         std::lock_guard<std::mutex> lock(client_mutexes[MAX_USERS + id]);
         memset(username, 0, BUFFER_SIZE);
         recv(acceptSocket, username, BUFFER_SIZE, 0);
     }
-    if (1)
+
     {
         std::lock_guard<std::mutex> lock(client_mutexes[id]);
-
         send(acceptSocket, password_prompt, strlen(password_prompt), 0);
     }
-    if (1)
+
     {
         std::lock_guard<std::mutex> lock(client_mutexes[MAX_USERS + id]);
         memset(password, 0, BUFFER_SIZE);
@@ -289,14 +287,12 @@ void authenticate_client(int acceptSocket)
     {
         // take the lock
         server_logs("Authentication successful for " + std::string(username));
-        if (1)
         {
             std::lock_guard<std::mutex> lock(client_mutexes[id]);
             std::string response = "Welcome to the server " + std::string(username) + "!\n";
             send(acceptSocket, response.c_str(), response.size(), 0);
         }
         server_logs("Welcome " + std::string(username) + "!");
-        if (1)
         {
             std::lock_guard<std::mutex> lock(global_mutex);
             logged_in[username] = 1;
@@ -344,9 +340,8 @@ void push_messages()
     }
 }
 
-int main(int argc, char *argv[])
+int main()
 {
-
     int port = 12345;
     std::string directory = "static";
 
@@ -357,6 +352,7 @@ int main(int argc, char *argv[])
         std::cerr << "Failed to open users.txt" << std::endl;
         return 0;
     }
+
     std::string str;
     while (usersFile >> str)
     {
@@ -372,21 +368,15 @@ int main(int argc, char *argv[])
         Passwords[username] = password;
     }
 
-    int serverSocket = INVALID_SOCKET;
-
-    serverSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    // Create the server socket
+    int serverSocket = socket(AF_INET, SOCK_STREAM, 0);
     setsockopt(serverSocket, SOL_SOCKET, SO_REUSEADDR, NULL, 1);
     if (serverSocket == INVALID_SOCKET)
     {
         cout << "Error at socket(): Creation Failed " << "\n";
         return 0;
     }
-    else
-    {
-        std::cout << "socket() is OK!\n";
-    }
-
-    // cout << serverSocket << "\n";
+    std::cout << "socket() is OK!\n";
 
     sockaddr_in server_address;
     server_address.sin_family = AF_INET;
@@ -398,10 +388,7 @@ int main(int argc, char *argv[])
         close(serverSocket);
         return 0;
     }
-    else
-    {
-        std::cout << "bind() is OK\n";
-    }
+    std::cout << "bind() is OK\n";
 
     if (listen(serverSocket, BACKLOG) == SOCKET_ERROR)
     {
@@ -409,10 +396,7 @@ int main(int argc, char *argv[])
         close(serverSocket);
         return 0;
     }
-    else
-    {
-        std::cout << "Server started on port " << port << "\n";
-    }
+    std::cout << "Server started on port " << port << "\n";
 
     std::thread push_dms_thread(push_messages);
     push_dms_thread.detach();
@@ -420,20 +404,17 @@ int main(int argc, char *argv[])
     while (1)
     {
         server_logs("Waiting for client connection...");
-        int acceptSocket = INVALID_SOCKET;
         sockaddr clientaddress;
         __socklen_t addressLength = sizeof(clientaddress);
-        acceptSocket = accept(serverSocket, (sockaddr *)&clientaddress, &addressLength);
+        int acceptSocket = accept(serverSocket, (sockaddr *)&clientaddress, &addressLength);
         if (acceptSocket == INVALID_SOCKET)
         {
             close(serverSocket);
             exit(0);
         }
-        else
-        {
-            std::lock_guard<std::mutex> lock(cout_mutex);
-            std::cout << "Connected to : " << inet_ntoa(((sockaddr_in *)&clientaddress)->sin_addr) << " " << "on socket" << " " << acceptSocket << "\n";
-        }
+
+        std::lock_guard<std::mutex> lock(cout_mutex);
+        std::cout << "Connected to : " << inet_ntoa(((sockaddr_in *)&clientaddress)->sin_addr) << " " << "on socket" << " " << acceptSocket << "\n";
         std::thread authenticate_client_thread(authenticate_client, acceptSocket);
         authenticate_client_thread.detach();
     }
