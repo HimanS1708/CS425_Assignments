@@ -143,9 +143,16 @@ void handle_messages(std::string username, char *buffer)
     {
         std::string group_name;
         ss >> group_name;
-
+        int group_exists = 0;
+        int is_member = 0;
+        {
+            std::lock_guard<std::mutex> lock(global_mutex);
+            group_exists = group_id.count(group_name);
+            is_member = group[group_name].count(username);
+        }
         // Check if user is a member of the group or not
-        if(!group.count(group_name) || !group[group_name].count(username)){
+        if (!group_exists || !is_member)
+        {
             std::lock_guard<std::mutex> lock(client_mutexes[id]);
 
             std::string response = "User " + username + " not a member of group " + group_name;
@@ -155,7 +162,11 @@ void handle_messages(std::string username, char *buffer)
         }
 
         // Handle group leaving logic
-        int id = group_id[group_name];
+        int id = -1;
+        {
+            std::lock_guard<std::mutex> lock(global_mutex);
+            id = group_id[group_name];
+        }
         {
             std::lock_guard<std::mutex> lock(group_mutex[id]);
             group[group_name].erase(username);
