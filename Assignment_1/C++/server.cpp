@@ -1,3 +1,4 @@
+// Include Stuff
 #include <mutex>
 #include <thread>
 #include <arpa/inet.h>
@@ -11,6 +12,7 @@
 #include <queue>
 #include <iostream>
 
+// Define macros
 #define BUFFER_SIZE 1024
 #define BACKLOG 10
 
@@ -19,6 +21,7 @@ namespace fs = std::filesystem;
 int INVALID_SOCKET = -1;
 int SOCKET_ERROR = -1;
 
+// Define global variables
 std::mutex cout_mutex;
 std::mutex global_mutex;
 
@@ -32,17 +35,18 @@ std::map<std::string, int> logged_in;
 std::map<std::string, std::set<std::string>> group;
 std::map<std::string, int> group_id;
 
-// sender, receiver, message
+// [sender, receiver, message]
 std::queue<std::tuple<std::string, std::string, std::string>> msgs;
 int group_count = 0;
 
+// Print the server logs
 void server_logs(std::string log)
 {
-    // log the server logs,  take cout mutex
     std::lock_guard<std::mutex> lock(cout_mutex);
     std::cout << "Server Logs: " << log << "\n";
 }
 
+// Handle user messages
 void handle_messages(std::string username, char *buffer)
 {
     std::string message = buffer;
@@ -207,6 +211,7 @@ void handle_messages(std::string username, char *buffer)
     }
 }
 
+// Handle requests from the client
 void handle_client_messages(std::string username)
 {
     int acceptSocket = client_socket[username];
@@ -237,9 +242,9 @@ void handle_client_messages(std::string username)
     }
 }
 
+// Handle the joining of a client
 void handle_client(std::string username)
 {
-
     int acceptSocket = client_socket[username];
 
     // send messages about other participants
@@ -265,6 +270,7 @@ void handle_client(std::string username)
     handle_client_messages_thread.detach();
 }
 
+// Authenticate the client
 void authenticate_client(int acceptSocket)
 {
     char user_prompt[BUFFER_SIZE];
@@ -361,6 +367,7 @@ void authenticate_client(int acceptSocket)
     }
 }
 
+// Handle message pushing to each client
 void push_messages()
 {
     while (true)
