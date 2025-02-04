@@ -6,13 +6,14 @@
 #include <sstream>
 #include <string.h>
 #include <map>
+#include <unordered_map>
 #include <set>
 #include <queue>
 #include <iostream>
 
 #define BUFFER_SIZE 1024
 #define BACKLOG 10
-#define MAX_USERS 100
+// #define MAX_USERS 100
 #define MAX_GROUPS 100
 
 namespace fs = std::filesystem;
@@ -23,7 +24,8 @@ int SOCKET_ERROR = -1;
 std::mutex cout_mutex;
 std::mutex global_mutex;
 std::mutex group_mutex[MAX_GROUPS];
-std::mutex client_mutexes[2 * MAX_USERS];
+std::unordered_map<int, std::mutex> client_send_mutexes;
+std::unordered_map<int, std::mutex> client_recv_mutexes;
 
 std::map<std::string, std::string> Passwords;
 std::map<std::string, int> client_socket;
@@ -60,7 +62,6 @@ void handle_messages(std::string username, char *buffer)
         msg = msg.substr(1);
         server_logs("Message from " + username + " to " + receiver + ": " + msg);
         std::lock_guard<std::mutex> lock(global_mutex);
-        // server_logs("We reach here!!");
         msgs.push({username, receiver, msg});
     }
     else if (word == "/create_group")
@@ -70,7 +71,7 @@ void handle_messages(std::string username, char *buffer)
         {
             std::lock_guard<std::mutex> lock(global_mutex);
             if(group.count(group_name)){
-                std::lock_guard<std::mutex> lock(client_mutexes[id]);
+                std::lock_guard<std::mutex> lock(client_send_mutexes[id]);
                 std::string response = "Group " + group_name + " already exists";
                 send(client_socket[username], response.c_str(), response.size(), 0);
                 return;
@@ -81,7 +82,7 @@ void handle_messages(std::string username, char *buffer)
         server_logs("Group " + group_name + " created by " + username);
 
         {
-            std::lock_guard<std::mutex> lock(client_mutexes[id]);
+            std::lock_guard<std::mutex> lock(client_send_mutexes[id]);
 
             std::string response = "Group " + group_name + " created";
             send(client_socket[username], response.c_str(), response.size(), 0);
@@ -94,7 +95,7 @@ void handle_messages(std::string username, char *buffer)
 
         // Check if the group exists
         if(!group_id.count(group_name)){
-            std::lock_guard<std::mutex> lock(client_mutexes[id]);
+            std::lock_guard<std::mutex> lock(client_send_mutexes[id]);
 
             std::string response = "Group " + group_name + " does not exist";
             send(client_socket[username], response.c_str(), response.size(), 0);
@@ -113,8 +114,7 @@ void handle_messages(std::string username, char *buffer)
         server_logs(username + " joined group " + group_name);
 
         {
-
-            std::lock_guard<std::mutex> lock(client_mutexes[id]);
+            std::lock_guard<std::mutex> lock(client_send_mutexes[id]);
             std::string response = "Joined group " + group_name;
             send(client_socket[username], response.c_str(), response.size(), 0);
         }
@@ -158,7 +158,7 @@ void handle_messages(std::string username, char *buffer)
         // Check if user is a member of the group or not
         if (!group_exists || !is_member)
         {
-            std::lock_guard<std::mutex> lock(client_mutexes[id]);
+            std::lock_guard<std::mutex> lock(client_send_mutexes[id]);
 
             std::string response = "User " + username + " not a member of group " + group_name;
             send(client_socket[username], response.c_str(), response.size(), 0);
@@ -179,7 +179,7 @@ void handle_messages(std::string username, char *buffer)
         server_logs(username + " left group " + group_name);
 
         {
-            std::lock_guard<std::mutex> lock(client_mutexes[id]);
+            std::lock_guard<std::mutex> lock(client_send_mutexes[id]);
             std::string response = "Left group " + group_name;
             send(client_socket[username], response.c_str(), response.size(), 0);
         }
@@ -203,7 +203,7 @@ void handle_messages(std::string username, char *buffer)
     }
     else
     {
-        std::lock_guard<std::mutex> lock(client_mutexes[id]);
+        std::lock_guard<std::mutex> lock(client_send_mutexes[id]);
         std::string response = "Invalid command";
         send(client_socket[username], response.c_str(), response.size(), 0);
     }
@@ -217,11 +217,13 @@ void handle_client_messages(std::string username)
     {
         memset(buffer, 0, BUFFER_SIZE);
         {
-            std::lock_guard<std::mutex> lock(client_mutexes[MAX_USERS + acceptSocket]);
+            std::lock_guard<std::mutex> lock(client_recv_mutexes[acceptSocket]);
             int bytes_received = recv(acceptSocket, buffer, BUFFER_SIZE, 0);
             if (bytes_received <= 0)
             {
                 server_logs("Disconnected from client " + username);
+                client_send_mutexes.erase(acceptSocket);
+                client_recv_mutexes.erase(acceptSocket);
                 close(acceptSocket);
                 {
                     std::lock_guard<std::mutex> lock(global_mutex);
@@ -254,7 +256,7 @@ void handle_client(std::string username)
                 std::string message_to_send = "\n" + message;
                 int id = client_socket[username];
                 server_logs("Sending message to " + username + ": " + message);
-                std::lock_guard<std::mutex> lock(client_mutexes[id]);
+                std::lock_guard<std::mutex> lock(client_send_mutexes[id]);
                 send(acceptSocket, message_to_send.c_str(), message_to_send.size(), 0);
             }
         }
@@ -278,42 +280,50 @@ void authenticate_client(int acceptSocket)
     strcpy(password_prompt, "Enter password: ");
 
     {
-        std::lock_guard<std::mutex> lock(client_mutexes[id]);
+        std::lock_guard<std::mutex> lock(client_send_mutexes[id]);
         int bytes_sent = send(acceptSocket, user_prompt, strlen(user_prompt), 0);
         if(bytes_sent<0){
             perror("send() failed (username prompt)");
+            client_send_mutexes.erase(acceptSocket);
+            client_recv_mutexes.erase(acceptSocket);
             close(acceptSocket);
             return;
         }
     }
 
     {
-        std::lock_guard<std::mutex> lock(client_mutexes[MAX_USERS + id]);
+        std::lock_guard<std::mutex> lock(client_recv_mutexes[id]);
         memset(username, 0, BUFFER_SIZE);
         int bytes_received = recv(acceptSocket, username, BUFFER_SIZE, 0);
         if(bytes_received<=0){
             server_logs("Disconnected from client at socket " + std::to_string(acceptSocket) + " (username)");
+            client_send_mutexes.erase(acceptSocket);
+            client_recv_mutexes.erase(acceptSocket);
             close(acceptSocket);
             return;
         }
     }
 
     {
-        std::lock_guard<std::mutex> lock(client_mutexes[id]);
+        std::lock_guard<std::mutex> lock(client_send_mutexes[id]);
         int bytes_sent = send(acceptSocket, password_prompt, strlen(password_prompt), 0);
         if(bytes_sent<0){
             perror("send() failed (password prompt)");
+            client_send_mutexes.erase(acceptSocket);
+            client_recv_mutexes.erase(acceptSocket);
             close(acceptSocket);
             return;
         }
     }
 
     {
-        std::lock_guard<std::mutex> lock(client_mutexes[MAX_USERS + id]);
+        std::lock_guard<std::mutex> lock(client_recv_mutexes[id]);
         memset(password, 0, BUFFER_SIZE);
         int bytes_received = recv(acceptSocket, password, BUFFER_SIZE, 0);
         if(bytes_received<=0){
             server_logs("Disconnected from client at socket " + std::to_string(acceptSocket) + " (password)");
+            client_send_mutexes.erase(acceptSocket);
+            client_recv_mutexes.erase(acceptSocket);
             close(acceptSocket);
             return;
         }
@@ -325,8 +335,10 @@ void authenticate_client(int acceptSocket)
         server_logs("Authentication failed for " + std::string(username));
         std::string response = "Authentication failed";
         id = acceptSocket;
-        std::lock_guard<std::mutex> lock(client_mutexes[id]);
+        std::lock_guard<std::mutex> lock(client_send_mutexes[id]);
         send(acceptSocket, response.c_str(), response.size(), 0);
+        client_send_mutexes.erase(acceptSocket);
+        client_recv_mutexes.erase(acceptSocket);
         close(acceptSocket);
         return;
     }
@@ -335,7 +347,7 @@ void authenticate_client(int acceptSocket)
         // take the lock
         server_logs("Authentication successful for " + std::string(username));
         {
-            std::lock_guard<std::mutex> lock(client_mutexes[id]);
+            std::lock_guard<std::mutex> lock(client_send_mutexes[id]);
             std::string response = "Welcome to the server " + std::string(username) + "!";
             send(acceptSocket, response.c_str(), response.size(), 0);
         }
@@ -369,7 +381,7 @@ void push_messages()
                     int id = client_socket[receiver];
                     // take the lock
                     server_logs("Sending message from " + sender + " to " + receiver + ": " + message);
-                    std::lock_guard<std::mutex> lock(client_mutexes[id]);
+                    std::lock_guard<std::mutex> lock(client_send_mutexes[id]);
                     send(client_socket[receiver], msg.c_str(), msg.size(), 0);
                 }
                 else
@@ -390,7 +402,6 @@ void push_messages()
 int main()
 {
     int port = 12345;
-    std::string directory = "static";
 
     // read from users.txt
     std::ifstream usersFile("users.txt");
@@ -463,12 +474,10 @@ int main()
 
         std::lock_guard<std::mutex> lock(cout_mutex);
         std::cout << "Connected to : " << inet_ntoa(((sockaddr_in *)&clientaddress)->sin_addr) << " " << "on socket" << " " << acceptSocket << "\n";
+        client_send_mutexes[acceptSocket];
+        client_recv_mutexes[acceptSocket];
         std::thread authenticate_client_thread(authenticate_client, acceptSocket);
         authenticate_client_thread.detach();
     }
     return 0;
 }
-
-// while displaying all users logged in, the client clubs multiple packets together and displays them together as one message ? If we can implement a blocking send.....
-
-// We assume that clients remain connected.
