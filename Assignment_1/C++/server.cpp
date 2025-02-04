@@ -13,8 +13,6 @@
 
 #define BUFFER_SIZE 1024
 #define BACKLOG 10
-// #define MAX_USERS 100
-#define MAX_GROUPS 100
 
 namespace fs = std::filesystem;
 
@@ -23,7 +21,8 @@ int SOCKET_ERROR = -1;
 
 std::mutex cout_mutex;
 std::mutex global_mutex;
-std::mutex group_mutex[MAX_GROUPS];
+
+std::unordered_map<int, std::mutex> group_mutex;
 std::unordered_map<int, std::mutex> client_send_mutexes;
 std::unordered_map<int, std::mutex> client_recv_mutexes;
 
@@ -106,7 +105,6 @@ void handle_messages(std::string username, char *buffer)
         // Handle group logic
         int id = group_id[group_name];
         {
-
             std::lock_guard<std::mutex> lock(group_mutex[id]);
             group[group_name].insert(username);
         }
