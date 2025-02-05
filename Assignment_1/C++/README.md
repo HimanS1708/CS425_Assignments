@@ -177,30 +177,25 @@ The work was equally distributed among all the three team members, with each mem
 The following references and materials were used in building this chat server:
 
 1. **C++ Networking and Sockets**
-   - Beej's Guide to Network Programming: [https://beej.us/guide/bgnet/](https://beej.us/guide/bgnet/)
-   - Linux `socket` and `pthread` Documentation: [https://man7.org/linux/man-pages/](https://man7.org/linux/man-pages/)
+   - Network Programming Sockets: [https://www.youtube.com/watch?v=gntyAFoZp-E](https://www.youtube.com/watch?v=gntyAFoZp-E)
+
 
 2. **Thread Synchronization and Concurrency**
-   - C++ `std::mutex` and `std::thread` Documentation: [https://en.cppreference.com/](https://en.cppreference.com/)
-   - Effective Use of Mutexes in C++: [https://www.modernescpp.com/index.php/mutex](https://www.modernescpp.com/index.php/mutex)
-
-3. **Message Queueing and Data Structures**
-   - C++ `std::queue` for Message Handling: [https://en.cppreference.com/w/cpp/container/queue](https://en.cppreference.com/w/cpp/container/queue)
-   - Managing Thread-Safe Data Structures: [https://en.cppreference.com/w/cpp/thread](https://en.cppreference.com/w/cpp/thread)
-
-4. **Client-Server Communication Best Practices**
+   - C++ thread : [https://www.youtube.com/watch?v=wXBcwHwIt_I](https://www.youtube.com/watch?v=wXBcwHwIt_I)
+   
+3. **Client-Server Communication Best Practices**
    - TCP/IP Socket Programming: [https://www.geeksforgeeks.org/socket-programming-cc/](https://www.geeksforgeeks.org/socket-programming-cc/)
-   - Handling Multiple Clients with `select()` and `poll()`: [https://www.gnu.org/software/libc/manual/html_node/Waiting-for-I_002fO.html](https://www.gnu.org/software/libc/manual/html_node/Waiting-for-I_002fO.html)
 
+4.
 
 
 # Declaration
 
-This project is developed as part of the **IITK CS425 Computer Networks** course under **Prof. Aditya Vadapalli**.  
-All code and documentation are intended for educational purposes only. Any external resources used have been appropriately referenced in the **Sources** section.  
+We declare that this project has been completed as part of the **IITK CS425 Computer Networks** course under **Prof. Aditya Vadapalli**.  
+We affirm that we have not indulged in any form of plagiarism and that all work submitted is our own, except for properly credited external references.  
 
 
 # Feedback
 
-For any queries or feedback, feel free to reach out via email. We appreciate your input and are happy to assist with any questions!
+
 
