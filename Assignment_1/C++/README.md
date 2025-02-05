@@ -170,11 +170,29 @@ While the chat server is optimized for performance and scalability, there are ce
 - Himanshu Shekhar-220454
 - Swayamsidh Pradhan-221117
 
-The work was equally distributed among all three team members, with each member contributing 33.33% of the total effort through collaborative implementation, testing, and debugging of the project.
+The work was equally distributed among all the three team members, with each member contributing 33.33% of the total effort through collaborative implementation, testing, and debugging of the project.
 
 # Sources
 
--
+The following references and materials were used in building this chat server:
+
+1. **C++ Networking and Sockets**
+   - Beej's Guide to Network Programming: [https://beej.us/guide/bgnet/](https://beej.us/guide/bgnet/)
+   - Linux `socket` and `pthread` Documentation: [https://man7.org/linux/man-pages/](https://man7.org/linux/man-pages/)
+
+2. **Thread Synchronization and Concurrency**
+   - C++ `std::mutex` and `std::thread` Documentation: [https://en.cppreference.com/](https://en.cppreference.com/)
+   - Effective Use of Mutexes in C++: [https://www.modernescpp.com/index.php/mutex](https://www.modernescpp.com/index.php/mutex)
+
+3. **Message Queueing and Data Structures**
+   - C++ `std::queue` for Message Handling: [https://en.cppreference.com/w/cpp/container/queue](https://en.cppreference.com/w/cpp/container/queue)
+   - Managing Thread-Safe Data Structures: [https://en.cppreference.com/w/cpp/thread](https://en.cppreference.com/w/cpp/thread)
+
+4. **Client-Server Communication Best Practices**
+   - TCP/IP Socket Programming: [https://www.geeksforgeeks.org/socket-programming-cc/](https://www.geeksforgeeks.org/socket-programming-cc/)
+   - Handling Multiple Clients with `select()` and `poll()`: [https://www.gnu.org/software/libc/manual/html_node/Waiting-for-I_002fO.html](https://www.gnu.org/software/libc/manual/html_node/Waiting-for-I_002fO.html)
+
+
 
 # Declaration
 
