@@ -2,26 +2,26 @@
 
 ## Features implemented
 
-✔ **Multithreaded Client Handling** – Each client connection is handled in a **separate thread**, allowing multiple users to interact simultaneously.  
-✔ **User Authentication** – Users must log in using credentials stored in `users.txt`.  
-✔ **Private Messaging** – Users can send **direct messages** using the `/msg` command.  
-✔ **Group Messaging** – Users can create, join, and leave **chat groups**.  
-✔ **Broadcast Messaging** – Users can send messages to **all online users** using `/broadcast`.  
-✔ **Asynchronous Message Processing** – Messages are queued and **processed in the background** to avoid blocking client requests.  
-✔ **Thread-Safe Message Queue** – Ensures **no data races** when handling messages.  
-✔ **Proper Client Disconnection Handling** – **Prevents server crashes** when a client disconnects unexpectedly.  
-✔ **Mutex-Guarded Communication** – Prevents **race conditions** with per-client and per-group mutexes.  
-✔ **Blocking Send Mechanism** – Ensures **TCP does not club multiple messages together**.  
+- **Multithreaded Client Handling** – Each client connection is handled in a **separate thread**, allowing multiple users to interact simultaneously.  
+- **User Authentication** – Users must log in using credentials stored in `users.txt`.  
+- **Private Messaging** – Users can send **direct messages** using the `/msg` command.  
+- **Group Messaging** – Users can create, join, and leave **chat groups**.  
+- **Broadcast Messaging** – Users can send messages to **all online users** using `/broadcast`.  
+- **Asynchronous Message Processing** – Messages are queued and **processed in the background** to avoid blocking client requests.  
+- **Thread-Safe Message Queue** – Ensures **no data races** when handling messages.  
+- **Proper Client Disconnection Handling** – **Prevents server crashes** when a client disconnects unexpectedly.  
+- **Mutex-Guarded Communication** – Prevents **race conditions** with per-client and per-group mutexes.  
+- **Blocking Send Mechanism** – Ensures **TCP does not club multiple messages together**.  
 
 ---
 
 ## Features not implemented
 
-❌ **Persistent Chat History** – Messages are **not stored permanently** after a restart.  
-❌ **File Transfer Support** – Currently, only **text messages** are supported.  
-❌ **User Registration** – Users must be manually added to `users.txt`.  
-❌ **End-to-End Encryption** – Messages are sent **in plain text** over the network.  
-❌ **Error Handling** – Some messages are not checked for **errors** and **null** values.  
+- **Persistent Chat History** – Messages are **not stored permanently** after a restart.  
+- **File Transfer Support** – Currently, only **text messages** are supported.  
+- **User Registration** – Users must be manually added to `users.txt`.  
+- **End-to-End Encryption** – Messages are sent **in plain text** over the network.  
+- **Error Handling** – Some messages are not checked for **errors** and **null** values.  
 
 ---
 
@@ -57,10 +57,6 @@
    - The thread handling the client **terminates gracefully**.
 
 ---
-
-# Testing
-
--
 
 # Challenges faced
 
