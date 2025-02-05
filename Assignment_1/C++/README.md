@@ -170,7 +170,7 @@ While the chat server is optimized for performance and scalability, there are ce
 - Himanshu Shekhar-220454
 - Swayamsidh Pradhan-221117
 
-The work was equally distributed among all the three team members, with each member contributing 33.33% of the total effort through collaborative implementation, testing, and debugging of the project.
+The work was equally distributed among all the three team members, with each member contributing through collaborative implementation, testing, and debugging of the project.
 
 # Sources
 
