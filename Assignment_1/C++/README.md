@@ -187,7 +187,7 @@ The following references and materials were used in building this chat server:
    - TCP/IP Socket Programming: [https://www.geeksforgeeks.org/socket-programming-cc/](https://www.geeksforgeeks.org/socket-programming-cc/)
 
 4. **Code Template**
--c++ Implementation: [https://github.com/privacy-iitk/cs425-2025/tree/main/classroom-code](https://github.com/privacy-iitk/cs425-2025/tree/main/classroom-code)
+- c++ Implementation: [https://github.com/privacy-iitk/cs425-2025/tree/main/classroom-code](https://github.com/privacy-iitk/cs425-2025/tree/main/classroom-code)
 
 # Declaration
 
