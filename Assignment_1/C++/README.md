@@ -202,4 +202,5 @@ All code and documentation are intended for educational purposes only. Any exter
 
 # Feedback
 
--
+For any queries or feedback, feel free to reach out via email. We appreciate your input and are happy to assist with any questions!
+
