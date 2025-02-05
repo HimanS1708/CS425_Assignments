@@ -196,7 +196,9 @@ The following references and materials were used in building this chat server:
 
 # Declaration
 
--
+This project is developed as part of the **IITK CS425 Computer Networks** course under **Prof. Aditya Vadapalli**.  
+All code and documentation are intended for educational purposes only. Any external resources used have been appropriately referenced in the **Sources** section.  
+
 
 # Feedback
 
