@@ -73,8 +73,14 @@ void handle_messages(std::string username, char *buffer)
         ss >> group_name;
         {
             std::lock_guard<std::mutex> lock(global_mutex);
+<<<<<<< HEAD
             if(group.count(group_name)){
                 std::lock_guard<std::mutex> lock(client_send_mutexes[id]);
+=======
+            if (group.count(group_name))
+            {
+                std::lock_guard<std::mutex> lock(client_mutexes[id]);
+>>>>>>> 76a6057c0cf5c1e2ef51f8517b23356bef875afb
                 std::string response = "Group " + group_name + " already exists";
                 send(client_socket[username], response.c_str(), response.size(), 0);
                 return;
@@ -97,8 +103,14 @@ void handle_messages(std::string username, char *buffer)
         ss >> group_name;
 
         // Check if the group exists
+<<<<<<< HEAD
         if(!group_id.count(group_name)){
             std::lock_guard<std::mutex> lock(client_send_mutexes[id]);
+=======
+        if (!group_id.count(group_name))
+        {
+            std::lock_guard<std::mutex> lock(client_mutexes[id]);
+>>>>>>> 76a6057c0cf5c1e2ef51f8517b23356bef875afb
 
             std::string response = "Group " + group_name + " does not exist";
             send(client_socket[username], response.c_str(), response.size(), 0);
@@ -232,7 +244,7 @@ void handle_client_messages(std::string username)
                     std::lock_guard<std::mutex> lock(global_mutex);
                     logged_in[username] = 0;
                 }
-                
+
                 std::lock_guard<std::mutex> lock(global_mutex);
                 client_socket.erase(username);
                 return;
@@ -286,7 +298,8 @@ void authenticate_client(int acceptSocket)
     {
         std::lock_guard<std::mutex> lock(client_send_mutexes[id]);
         int bytes_sent = send(acceptSocket, user_prompt, strlen(user_prompt), 0);
-        if(bytes_sent<0){
+        if (bytes_sent < 0)
+        {
             perror("send() failed (username prompt)");
             client_send_mutexes.erase(acceptSocket);
             client_recv_mutexes.erase(acceptSocket);
@@ -299,7 +312,8 @@ void authenticate_client(int acceptSocket)
         std::lock_guard<std::mutex> lock(client_recv_mutexes[id]);
         memset(username, 0, BUFFER_SIZE);
         int bytes_received = recv(acceptSocket, username, BUFFER_SIZE, 0);
-        if(bytes_received<=0){
+        if (bytes_received <= 0)
+        {
             server_logs("Disconnected from client at socket " + std::to_string(acceptSocket) + " (username)");
             client_send_mutexes.erase(acceptSocket);
             client_recv_mutexes.erase(acceptSocket);
@@ -311,7 +325,8 @@ void authenticate_client(int acceptSocket)
     {
         std::lock_guard<std::mutex> lock(client_send_mutexes[id]);
         int bytes_sent = send(acceptSocket, password_prompt, strlen(password_prompt), 0);
-        if(bytes_sent<0){
+        if (bytes_sent < 0)
+        {
             perror("send() failed (password prompt)");
             client_send_mutexes.erase(acceptSocket);
             client_recv_mutexes.erase(acceptSocket);
@@ -324,7 +339,8 @@ void authenticate_client(int acceptSocket)
         std::lock_guard<std::mutex> lock(client_recv_mutexes[id]);
         memset(password, 0, BUFFER_SIZE);
         int bytes_received = recv(acceptSocket, password, BUFFER_SIZE, 0);
-        if(bytes_received<=0){
+        if (bytes_received <= 0)
+        {
             server_logs("Disconnected from client at socket " + std::to_string(acceptSocket) + " (password)");
             client_send_mutexes.erase(acceptSocket);
             client_recv_mutexes.erase(acceptSocket);
